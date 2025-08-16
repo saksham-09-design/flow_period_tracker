@@ -1,3 +1,3 @@
 class API {
-  String api = "AIzaSyD4SIXcZrEqCCxOgTRuiSSiUS7yimjmoNA";
+  String api = "YOUR_API_KEY";
 }
