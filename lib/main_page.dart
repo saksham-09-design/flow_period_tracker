@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:flow_period_tracker/models/period_alert.dart';
+import 'package:flow_period_tracker/alert_history_screen.dart';
 import 'package:flow_period_tracker/utils/app_colors.dart';
 
 class MainPage extends StatefulWidget {
@@ -25,6 +27,11 @@ class _MainPageState extends State<MainPage> {
 
   // Reference to the opened Hive box
   late Box<SavedDateRange> _savedRangesBox;
+  late Box<PeriodAlert> _periodAlertsBox;
+
+  // Irregularity thresholds (in days)
+  final int minCycleLength = 21;
+  final int maxCycleLength = 35;
 
   
 
@@ -34,6 +41,7 @@ class _MainPageState extends State<MainPage> {
     _selectedDay = _focusedDay;
     // Get the box instance. Assumes it's opened in your main.dart file.
     _savedRangesBox = Hive.box('date_ranges');
+    _periodAlertsBox = Hive.box('periodAlerts');
   }
 
   bool _isInitialCheckDone = false;
@@ -42,6 +50,7 @@ class _MainPageState extends State<MainPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_isInitialCheckDone) {
+      _checkIrregularity();
       _isInitialCheckDone = true;
     }
   }
@@ -81,6 +90,7 @@ class _MainPageState extends State<MainPage> {
           backgroundColor: Colors.green,
         ),
       );
+      _checkIrregularity(); // Check for irregularity after saving
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -88,6 +98,110 @@ class _MainPageState extends State<MainPage> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  
+  void _checkIrregularity() {
+    List<String> localAlertMessages = [];
+
+    final List<SavedDateRange> sortedRanges = _savedRangesBox.values.toList()
+      ..sort((a, b) => a.start.compareTo(b.start));
+
+    if (sortedRanges.length < 2) {
+      return;
+    }
+
+    List<int> cycleLengths = [];
+    List<String> irregularCycleDates = []; // To store dates of irregular cycles
+    for (int i = 1; i < sortedRanges.length; i++) {
+      final Duration difference =
+          sortedRanges[i].start.difference(sortedRanges[i - 1].start);
+      cycleLengths.add(difference.inDays);
+
+      // Store dates for the current cycle
+      final String cycleDateRange =
+          '${DateFormat('MMM dd').format(sortedRanges[i - 1].start)} - ${DateFormat('MMM dd').format(sortedRanges[i].start)}';
+
+      if (cycleLengths.last < minCycleLength ||
+          cycleLengths.last > maxCycleLength) {
+        irregularCycleDates.add(cycleDateRange);
+      } else {
+        irregularCycleDates.clear(); // Reset if a regular cycle is found
+      }
+
+      if (irregularCycleDates.length >= 3) {
+        final String message =
+            "Irregular periods detected for the last 3 cycles (${irregularCycleDates.join(', ')}). Consider consulting a doctor.";
+        _addAlert(message, 'irregularity');
+        localAlertMessages.add(message);
+        break; // Only show one "3 irregular cycles" alert at a time
+      } else if (irregularCycleDates.isNotEmpty) {
+        final String message =
+            "Irregular period detected. Cycle length: ${cycleLengths.last} days. (Cycle: ${irregularCycleDates.last})";
+        _addAlert(message, 'irregularity');
+        localAlertMessages.add(message);
+      }
+    }
+
+    // Check for concurrent alerts for "consult doctor"
+    final List<PeriodAlert> recentIrregularityAlerts = _periodAlertsBox.values
+        .where((alert) =>
+            alert.type == 'irregularity' &&
+            DateTime.now().difference(alert.timestamp).inDays <= 90) // Within last 3 months
+        .toList();
+
+    if (recentIrregularityAlerts.length >= 2) {
+      final String message = "You should consult a doctor.";
+      _addAlert(message, 'consult_doctor');
+      localAlertMessages.add(message);
+    }
+
+    if (localAlertMessages.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAlertPopup(localAlertMessages);
+      });
+    }
+  }
+
+  void _showAlertPopup(List<String> messages) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Alert!'),
+          icon: const Icon(Icons.warning, color: Colors.red, size: 40),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: messages.map((msg) => Text(msg)).toList(),
+            ),
+          ),
+          actions: 
+          <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  
+
+  void _addAlert(String message, String type) {
+    // Check for duplicate before adding
+    final bool isDuplicate = _periodAlertsBox.values.any(
+      (alert) => alert.message == message && alert.type == type,
+    );
+
+    if (!isDuplicate) {
+      final newAlert =
+          PeriodAlert(message: message, timestamp: DateTime.now(), type: type);
+      _periodAlertsBox.add(newAlert);
     }
   }
 
@@ -117,6 +231,7 @@ class _MainPageState extends State<MainPage> {
               await range.delete();
               // The ValueListenableBuilder will automatically update the UI.
               Navigator.pop(context); // Close the bottom sheet
+              _checkIrregularity(); // Re-check irregularity after deletion
             },
           ),
         ],
@@ -132,6 +247,16 @@ class _MainPageState extends State<MainPage> {
       lastDate: DateTime(2030),
       initialDateRange: DateTimeRange(start: range.start, end: range.end),
     );
+
+    if (picked != null) {
+      // Update the fields of the HiveObject
+      range.start = picked.start;
+      range.end = picked.end;
+      // The save() method is now available to persist the changes.
+      await range.save();
+      // The ValueListenableBuilder will automatically update the UI.
+      _checkIrregularity(); // Re-check irregularity after editing
+    }
   }
 
   @override
@@ -147,7 +272,12 @@ class _MainPageState extends State<MainPage> {
           IconButton(
             icon: const Icon(Icons.history, color: Colors.white),
             tooltip: 'Alert History',
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AlertHistoryScreen()),
+              );
+            },
           ),
         ],
       ),
