@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'models/chat_models.dart';
 
-// 1. Converted to a StatefulWidget to manage state changes (rebuilding the list after deletion).
 class PreviousChatsScreen extends StatefulWidget {
   const PreviousChatsScreen({super.key});
 
@@ -11,7 +10,6 @@ class PreviousChatsScreen extends StatefulWidget {
 }
 
 class _PreviousChatsScreenState extends State<PreviousChatsScreen> {
-  // 2. Moved the popup logic inside the State class and added the `index` parameter.
   void _showChatPopup(BuildContext context, ChatGroup chatGroup, int index) {
     showDialog(
       context: context,
@@ -25,7 +23,8 @@ class _PreviousChatsScreenState extends State<PreviousChatsScreen> {
               children: [
                 Text(
                   chatGroup.title,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
                 ),
                 const SizedBox(height: 16),
                 Expanded(
@@ -38,14 +37,18 @@ class _PreviousChatsScreenState extends State<PreviousChatsScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isUser ? const Color(0xFF5A44F0) : Colors.grey[300],
+                            color: isUser
+                                ? const Color(0xFFff6f61)
+                                : Colors.grey[300],
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             "${msg.sender}: ${msg.text}",
                             style: TextStyle(
-                              fontWeight: isUser ? FontWeight.bold : FontWeight.normal,
+                              fontWeight:
+                                  isUser ? FontWeight.bold : FontWeight.normal,
                               color: isUser ? Colors.white : Colors.black87,
+                              fontFamily: 'Poppins',
                             ),
                           ),
                         );
@@ -53,23 +56,22 @@ class _PreviousChatsScreenState extends State<PreviousChatsScreen> {
                     ),
                   ),
                 ),
-                // 3. Added a Row to hold both the Delete and Close buttons.
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                      child: const Text("Delete",
+                          style: TextStyle(color: Colors.red, fontFamily: 'Poppins')),
                       onPressed: () {
-                        // 4. Implemented the deletion logic.
                         final chatBox = Hive.box<ChatGroup>('chatGroups');
-                        chatBox.deleteAt(index); // Delete the item from Hive.
-                        Navigator.of(context).pop(); // Close the dialog.
-                        setState(() {}); // Trigger a rebuild of the screen to update the list.
+                        chatBox.deleteAt(index);
+                        Navigator.of(context).pop();
+                        setState(() {});
                       },
                     ),
                     const SizedBox(width: 8),
                     TextButton(
-                      child: const Text("Close"),
+                      child: const Text("Close", style: TextStyle(fontFamily: 'Poppins')),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
@@ -87,9 +89,11 @@ class _PreviousChatsScreenState extends State<PreviousChatsScreen> {
     final chatBox = Hive.box<ChatGroup>('chatGroups');
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text("Previous Chats", style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF5A44F0),
+        title: const Text("Previous Chats",
+            style: TextStyle(color: Colors.white, fontFamily: 'Poppins')),
+        backgroundColor: const Color(0xFFff6f61),
         elevation: 0,
       ),
       body: ListView.builder(
@@ -103,13 +107,13 @@ class _PreviousChatsScreenState extends State<PreviousChatsScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListTile(
-              title: Text(chatGroup.title),
+              title: Text(chatGroup.title, style: const TextStyle(fontFamily: 'Poppins')),
               subtitle: Text(
                 chatGroup.messages.isNotEmpty
                     ? "${chatGroup.messages.length} messages"
                     : "No messages",
+                style: const TextStyle(fontFamily: 'Poppins'),
               ),
-              // 5. Pass the index to the popup function.
               onTap: () => _showChatPopup(context, chatGroup, index),
             ),
           );

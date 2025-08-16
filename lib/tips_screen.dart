@@ -75,28 +75,28 @@ class TipsScreen extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(categoryName, textAlign: TextAlign.center),
+          title: Text(categoryName, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Poppins')),
           content: SingleChildScrollView(
             child: ListBody(
               children: tips
                   .map((tip) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Text("• $tip"),
+                        child: Text("• $tip", style: const TextStyle(fontFamily: 'Poppins')),
                       ))
                   .toList(),
             ),
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('OK'),
+              child: const Text('OK', style: TextStyle(fontFamily: 'Poppins')),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: const Text('Ask Sophia'),
+              child: const Text('Ask Sophia', style: TextStyle(fontFamily: 'Poppins')),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the current dialog
+                Navigator.of(context).pop();
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (_) => ChatScreen()),
@@ -112,56 +112,72 @@ class TipsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text("Tips", style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF5A44F0),
+        title: const Text("Health & Wellness Tips",
+            style: TextStyle(color: Colors.white, fontFamily: 'Poppins')),
+        backgroundColor: const Color(0xFFff6f61),
         elevation: 0,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(12.0),
         child: GridView.builder(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2, // 2 columns
-            crossAxisSpacing: 10, // Spacing between columns
-            mainAxisSpacing: 10, // Spacing between rows
-            childAspectRatio: 0.9, // Adjust as needed for content fit
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.0,
           ),
           itemCount: categories.length,
           itemBuilder: (context, index) {
             String categoryName = categories.keys.elementAt(index);
             List<String> tips = categories.values.elementAt(index);
             String emoji =
-                categoryName.split(' ').last; // Extract emoji from name
+                categoryName.split(' ').last;
 
             return GestureDetector(
               onTap: () => _showTipsPopup(context, categoryName, tips),
               child: Card(
-                elevation: 4,
+                elevation: 5,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        emoji,
-                        style: const TextStyle(fontSize: 48), // Large emoji
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        categoryName
-                            .replaceAll(emoji, '')
-                            .trim(), // Display name without emoji
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFFffb199).withOpacity(0.7),
+                        const Color(0xFFff6f61).withOpacity(0.9),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          emoji,
+                          style: const TextStyle(fontSize: 48),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 10),
+                        Text(
+                          categoryName
+                              .replaceAll(emoji, '')
+                              .trim(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -183,15 +199,13 @@ class TipsScreen extends StatelessWidget {
           }
         },
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF5A44F0),
+        selectedItemColor: const Color(0xFFff6f61),
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.water_drop_outlined), label: 'Track'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.lightbulb_outline), label: 'Tips'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
+              icon: Icon(Icons.track_changes), label: 'Track'),
+          BottomNavigationBarItem(icon: Icon(Icons.lightbulb), label: 'Tips'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
         ],
       ),
     );

@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:flow_period_tracker/models/period_alert.dart';
 import 'package:flow_period_tracker/alert_history_screen.dart';
-import 'package:flow_period_tracker/utils/app_colors.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -17,7 +16,6 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  // State variables for the calendar
   CalendarFormat _calendarFormat = CalendarFormat.month;
   RangeSelectionMode _rangeSelectionMode = RangeSelectionMode.toggledOn;
   DateTime _focusedDay = DateTime.now();
@@ -25,21 +23,16 @@ class _MainPageState extends State<MainPage> {
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
 
-  // Reference to the opened Hive box
   late Box<SavedDateRange> _savedRangesBox;
   late Box<PeriodAlert> _periodAlertsBox;
 
-  // Irregularity thresholds (in days)
   final int minCycleLength = 21;
   final int maxCycleLength = 35;
-
-  
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    // Get the box instance. Assumes it's opened in your main.dart file.
     _savedRangesBox = Hive.box('date_ranges');
     _periodAlertsBox = Hive.box('periodAlerts');
   }
@@ -60,7 +53,6 @@ class _MainPageState extends State<MainPage> {
     super.dispose();
   }
 
-  /// This function is called when a date range is selected on the calendar.
   void _onRangeSelected(DateTime? start, DateTime? end, DateTime focusedDay) {
     setState(() {
       _selectedDay = null;
@@ -71,14 +63,11 @@ class _MainPageState extends State<MainPage> {
     });
   }
 
-  /// This function saves the currently selected date range to the Hive box.
   void _saveDateRange() {
     if (_rangeStart != null && _rangeEnd != null) {
       final newRange = SavedDateRange(start: _rangeStart!, end: _rangeEnd!);
-      // Use add() to let Hive auto-assign an incrementing key
       _savedRangesBox.add(newRange);
 
-      // Clear the selection from the calendar UI
       setState(() {
         _rangeStart = null;
         _rangeEnd = null;
@@ -90,7 +79,7 @@ class _MainPageState extends State<MainPage> {
           backgroundColor: Colors.green,
         ),
       );
-      _checkIrregularity(); // Check for irregularity after saving
+      _checkIrregularity();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -101,7 +90,6 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
-  
   void _checkIrregularity() {
     List<String> localAlertMessages = [];
 
@@ -113,13 +101,12 @@ class _MainPageState extends State<MainPage> {
     }
 
     List<int> cycleLengths = [];
-    List<String> irregularCycleDates = []; // To store dates of irregular cycles
+    List<String> irregularCycleDates = [];
     for (int i = 1; i < sortedRanges.length; i++) {
       final Duration difference =
           sortedRanges[i].start.difference(sortedRanges[i - 1].start);
       cycleLengths.add(difference.inDays);
 
-      // Store dates for the current cycle
       final String cycleDateRange =
           '${DateFormat('MMM dd').format(sortedRanges[i - 1].start)} - ${DateFormat('MMM dd').format(sortedRanges[i].start)}';
 
@@ -127,7 +114,7 @@ class _MainPageState extends State<MainPage> {
           cycleLengths.last > maxCycleLength) {
         irregularCycleDates.add(cycleDateRange);
       } else {
-        irregularCycleDates.clear(); // Reset if a regular cycle is found
+        irregularCycleDates.clear();
       }
 
       if (irregularCycleDates.length >= 3) {
@@ -135,7 +122,7 @@ class _MainPageState extends State<MainPage> {
             "Irregular periods detected for the last 3 cycles (${irregularCycleDates.join(', ')}). Consider consulting a doctor.";
         _addAlert(message, 'irregularity');
         localAlertMessages.add(message);
-        break; // Only show one "3 irregular cycles" alert at a time
+        break;
       } else if (irregularCycleDates.isNotEmpty) {
         final String message =
             "Irregular period detected. Cycle length: ${cycleLengths.last} days. (Cycle: ${irregularCycleDates.last})";
@@ -144,11 +131,10 @@ class _MainPageState extends State<MainPage> {
       }
     }
 
-    // Check for concurrent alerts for "consult doctor"
     final List<PeriodAlert> recentIrregularityAlerts = _periodAlertsBox.values
         .where((alert) =>
             alert.type == 'irregularity' &&
-            DateTime.now().difference(alert.timestamp).inDays <= 90) // Within last 3 months
+            DateTime.now().difference(alert.timestamp).inDays <= 90)
         .toList();
 
     if (recentIrregularityAlerts.length >= 2) {
@@ -165,21 +151,25 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _showAlertPopup(List<String> messages) {
+    final userNameBox = Hive.box('userName');
+    final name = userNameBox.get('name', defaultValue: 'Friend');
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Alert!'),
+          title: Text('Alert for $name!', style: const TextStyle(fontFamily: 'Poppins')),
           icon: const Icon(Icons.warning, color: Colors.red, size: 40),
           content: SingleChildScrollView(
             child: ListBody(
-              children: messages.map((msg) => Text(msg)).toList(),
+              children: messages
+                  .map((msg) => Text(msg, style: const TextStyle(fontFamily: 'Poppins')))
+                  .toList(),
             ),
           ),
-          actions: 
-          <Widget>[
+          actions: <Widget>[
             TextButton(
-              child: const Text('OK'),
+              child: const Text('OK', style: TextStyle(fontFamily: 'Poppins')),
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -190,10 +180,7 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  
-
   void _addAlert(String message, String type) {
-    // Check for duplicate before adding
     final bool isDuplicate = _periodAlertsBox.values.any(
       (alert) => alert.message == message && alert.type == type,
     );
@@ -205,7 +192,6 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
-  /// Shows a bottom sheet with options to edit or delete a range.
   void _showRangeOptions(SavedDateRange range) {
     showModalBottomSheet(
       context: context,
@@ -219,7 +205,7 @@ class _MainPageState extends State<MainPage> {
             leading: const Icon(Icons.edit),
             title: const Text('Edit'),
             onTap: () {
-              Navigator.pop(context); // Close the bottom sheet
+              Navigator.pop(context);
               _editRange(range);
             },
           ),
@@ -227,11 +213,9 @@ class _MainPageState extends State<MainPage> {
             leading: const Icon(Icons.delete, color: Colors.red),
             title: const Text('Delete'),
             onTap: () async {
-              // The delete() method is now available because SavedDateRange extends HiveObject
               await range.delete();
-              // The ValueListenableBuilder will automatically update the UI.
-              Navigator.pop(context); // Close the bottom sheet
-              _checkIrregularity(); // Re-check irregularity after deletion
+              Navigator.pop(context);
+              _checkIrregularity();
             },
           ),
         ],
@@ -239,7 +223,6 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  /// Opens a date range picker to edit an existing range.
   void _editRange(SavedDateRange range) async {
     DateTimeRange? picked = await showDateRangePicker(
       context: context,
@@ -249,24 +232,21 @@ class _MainPageState extends State<MainPage> {
     );
 
     if (picked != null) {
-      // Update the fields of the HiveObject
       range.start = picked.start;
       range.end = picked.end;
-      // The save() method is now available to persist the changes.
       await range.save();
-      // The ValueListenableBuilder will automatically update the UI.
-      _checkIrregularity(); // Re-check irregularity after editing
+      _checkIrregularity();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.mainBackground,
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Periods Tracker',
-            style: TextStyle(color: Colors.white)),
-        backgroundColor: AppColors.primaryAccent,
+        title: const Text('Period Tracker',
+            style: TextStyle(color: Colors.white, fontFamily: 'Poppins')),
+        backgroundColor: const Color(0xFFff6f61),
         elevation: 0,
         actions: [
           IconButton(
@@ -283,11 +263,23 @@ class _MainPageState extends State<MainPage> {
       ),
       body: Column(
         children: [
-          // --- CALENDAR WIDGET ---
           Container(
-            color: Colors.white,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 10,
+                  offset: Offset(0, 5),
+                ),
+              ],
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(16.0),
               child: TableCalendar(
                 firstDay: DateTime.utc(2020, 1, 1),
                 lastDay: DateTime.utc(2030, 12, 31),
@@ -308,30 +300,29 @@ class _MainPageState extends State<MainPage> {
                 onPageChanged: (focusedDay) {
                   _focusedDay = focusedDay;
                 },
-                // --- STYLING THE CALENDAR ---
                 calendarStyle: CalendarStyle(
-                  rangeHighlightColor: AppColors.primaryAccent.withOpacity(0.2),
+                  rangeHighlightColor: const Color(0xFFffb199).withOpacity(0.3),
                   rangeStartDecoration: const BoxDecoration(
-                    color: AppColors.primaryAccent,
+                    color: Color(0xFFff6f61),
                     shape: BoxShape.circle,
                   ),
                   rangeEndDecoration: const BoxDecoration(
-                    color: AppColors.primaryAccent,
+                    color: Color(0xFFff6f61),
                     shape: BoxShape.circle,
                   ),
                   todayDecoration: BoxDecoration(
-                    color: AppColors.primaryAccent.withOpacity(0.5),
+                    color: const Color(0xFFff6f61).withOpacity(0.5),
                     shape: BoxShape.circle,
                   ),
                   selectedDecoration: const BoxDecoration(
-                    color: AppColors.primaryAccent,
+                    color: Color(0xFFff6f61),
                     shape: BoxShape.circle,
                   ),
                 ),
                 headerStyle: HeaderStyle(
                   titleCentered: true,
                   formatButtonDecoration: BoxDecoration(
-                    color: AppColors.primaryAccent,
+                    color: const Color(0xFFff6f61),
                     borderRadius: BorderRadius.circular(20.0),
                   ),
                   formatButtonTextStyle: const TextStyle(color: Colors.white),
@@ -340,10 +331,7 @@ class _MainPageState extends State<MainPage> {
               ),
             ),
           ),
-
-          const SizedBox(height: 16.0),
-
-          // --- SAVE BUTTON ---
+          const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: SizedBox(
@@ -351,29 +339,29 @@ class _MainPageState extends State<MainPage> {
               child: ElevatedButton(
                 onPressed: _saveDateRange,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryAccent,
+                  backgroundColor: const Color(0xFFff6f61),
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: const Text(
-                  'Save Date Range',
-                  style: TextStyle(fontSize: 16, color: Colors.white),
+                  'Save Period',
+                  style: TextStyle(
+                      fontSize: 16, color: Colors.white, fontFamily: 'Poppins'),
                 ),
               ),
             ),
           ),
-
-          const SizedBox(height: 16.0),
-
-          // --- SAVED DATES LIST ---
+          const SizedBox(height: 20),
           Expanded(
             child: ValueListenableBuilder(
               valueListenable: _savedRangesBox.listenable(),
               builder: (context, Box<SavedDateRange> box, _) {
                 if (box.isEmpty) {
-                  return const Center(child: Text('No saved date ranges yet.'));
+                  return const Center(
+                      child: Text('No saved periods yet.',
+                          style: TextStyle(fontFamily: 'Poppins')));
                 }
 
                 return ListView.builder(
@@ -398,25 +386,22 @@ class _MainPageState extends State<MainPage> {
                         ),
                         child: Row(
                           children: [
-                            // --- LEFT PART (20%): IMAGE PLACEHOLDER ---
                             Container(
                               width: 80,
                               height: 80,
                               decoration: const BoxDecoration(
-                                color: AppColors.primaryAccent,
+                                color: Color(0xFFff6f61),
                                 borderRadius: BorderRadius.only(
                                   topLeft: Radius.circular(12),
                                   bottomLeft: Radius.circular(12),
                                 ),
                               ),
                               child: const Icon(
-                                Icons.water_drop,
+                                Icons.favorite,
                                 color: Colors.white,
                                 size: 40,
                               ),
                             ),
-
-                            // --- RIGHT PART (80%): TEXT INFO ---
                             Expanded(
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -431,7 +416,7 @@ class _MainPageState extends State<MainPage> {
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
-                                        color: AppColors.textDark,
+                                        fontFamily: 'Poppins',
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -439,7 +424,7 @@ class _MainPageState extends State<MainPage> {
                                       dateRangeString,
                                       style: const TextStyle(
                                         fontSize: 14,
-                                        color: AppColors.textMedium,
+                                        fontFamily: 'Poppins',
                                       ),
                                     ),
                                   ],
@@ -458,7 +443,7 @@ class _MainPageState extends State<MainPage> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0, // Track is index 0
+        currentIndex: 0,
         onTap: (index) {
           if (index == 0) return;
           if (index == 1) {
@@ -470,15 +455,13 @@ class _MainPageState extends State<MainPage> {
           }
         },
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primaryAccent,
+        selectedItemColor: const Color(0xFFff6f61),
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.water_drop_outlined), label: 'Track'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.lightbulb_outline), label: 'Tips'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
+              icon: Icon(Icons.track_changes), label: 'Track'),
+          BottomNavigationBarItem(icon: Icon(Icons.lightbulb), label: 'Tips'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
         ],
       ),
     );
