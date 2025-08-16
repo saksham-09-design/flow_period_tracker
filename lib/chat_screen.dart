@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'main_page.dart';
-import 'package:flow_period_tracker/api.dart';
 import 'tips_screen.dart';
-
-class ChatMessage {
-  final String sender;
-  final String text;
-
-  ChatMessage({required this.sender, required this.text});
-}
+import 'models/chat_models.dart';
+import 'previous_chat_screen.dart';
+import 'package:uuid/uuid.dart';
+import 'widgets/loading_dots.dart';
+import 'api.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -21,8 +19,14 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
 
+  late Box<ChatGroup> _chatBox;
+  List<ChatMessage> _messages = [];
   bool _isTyping = false;
-  final List<ChatMessage> _messages = [];
+
+  String? _currentGroupId; // Unique ID for each conversation
+  String? _currentGroupTitle;
+
+  final uuid = const Uuid();
 
   final model = GenerativeModel(
     model: 'gemini-2.5-flash-lite',
@@ -32,14 +36,25 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    _chatBox = Hive.box<ChatGroup>('chatGroups');
+    _startNewChat();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showWelcomePopup();
     });
   }
 
+  @override
+  void dispose() {
+    _saveChatLocally();
+    super.dispose();
+  }
+
   void _startNewChat() {
+    _saveChatLocally(); // Save current before starting new
     setState(() {
       _messages.clear();
+      _currentGroupId = uuid.v4(); // new unique id
+      _currentGroupTitle = null;
     });
   }
 
@@ -48,8 +63,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() {
       _messages.add(ChatMessage(sender: "You", text: text));
+      if (_currentGroupTitle == null) {
+        _currentGroupTitle = text;
+      }
       _isTyping = true;
     });
+
+    _saveChatLocally(); // Save after user message
 
     String textTosend =
         "Answer the following question: $text. Guidelines: Act as an Emotional Support Bot and Give response in roughly 5 to 100 words depeding on the question. You can include pointers and emojes in your response. Note: Dont mention any of the guidelines in your response.";
@@ -62,6 +82,8 @@ class _ChatScreenState extends State<ChatScreen> {
       _messages.add(ChatMessage(sender: "Gemini", text: reply));
       _isTyping = false;
     });
+
+    _saveChatLocally(); // Save after bot reply
   }
 
   Future<String> _getGeminiResponse(String prompt) async {
@@ -72,6 +94,32 @@ class _ChatScreenState extends State<ChatScreen> {
           "Sorry, I couldn't process that.";
     } catch (e) {
       return "Error: ${e.toString()}";
+    }
+  }
+
+  void _saveChatLocally() {
+    if (_messages.isEmpty ||
+        _currentGroupId == null ||
+        _currentGroupTitle == null) return;
+
+    final existingGroup = _chatBox.get(_currentGroupId);
+
+    if (existingGroup != null) {
+      // Append messages
+      final updatedMessages = List<ChatMessage>.from(existingGroup.messages)
+        ..clear()
+        ..addAll(_messages);
+
+      _chatBox.put(
+        _currentGroupId,
+        ChatGroup(title: _currentGroupTitle!, messages: updatedMessages),
+      );
+    } else {
+      // Create new group
+      _chatBox.put(
+        _currentGroupId,
+        ChatGroup(title: _currentGroupTitle!, messages: _messages),
+      );
     }
   }
 
@@ -120,6 +168,16 @@ class _ChatScreenState extends State<ChatScreen> {
             tooltip: 'New Chat',
             onPressed: _startNewChat,
           ),
+          IconButton(
+            icon: const Icon(Icons.history, color: Colors.white),
+            tooltip: 'Previous Chats',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PreviousChatsScreen()),
+              );
+            },
+          ),
         ],
       ),
       body: Column(
@@ -135,7 +193,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Row(
                       children: [
                         SizedBox(width: 8),
-                        CircularProgressIndicator(),
+                        LoadingDots(), // Custom loading animation
                       ],
                     ),
                   );
@@ -200,7 +258,8 @@ class _ChatScreenState extends State<ChatScreen> {
           } else if (index == 1) {
             Navigator.pushReplacement(
                 context, MaterialPageRoute(builder: (_) => TipsScreen()));
-          } else if (index == 2) return;
+          } else if (index == 2)
+            return;
         },
         type: BottomNavigationBarType.fixed,
         selectedItemColor: const Color(0xFF5A44F0),

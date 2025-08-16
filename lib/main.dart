@@ -1,4 +1,5 @@
 import 'package:flow_period_tracker/login_screen.dart';
+import 'package:flow_period_tracker/models/chat_models.dart';
 import 'package:flow_period_tracker/models/period_alert.dart';
 import 'package:flow_period_tracker/models/saved_date_range.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,10 @@ void main() async {
   await Hive.openBox('userName');
   Hive.registerAdapter(SavedDateRangeAdapter());
   Hive.registerAdapter(PeriodAlertAdapter());
+  Hive.registerAdapter(ChatMessageAdapter());
+  Hive.registerAdapter(ChatGroupAdapter());
+  await Hive.openBox<ChatMessage>('chatMessages');
+  await Hive.openBox<ChatGroup>('chatGroups');
   await Hive.openBox<SavedDateRange>('date_ranges');
   await Hive.openBox<PeriodAlert>('periodAlerts');
   runApp(const MyApp());
