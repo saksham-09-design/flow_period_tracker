@@ -1,4 +1,5 @@
 import 'package:flow_period_tracker/login_screen.dart';
+import 'package:flow_period_tracker/models/period_alert.dart';
 import 'package:flow_period_tracker/models/saved_date_range.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/adapters.dart';
@@ -9,7 +10,9 @@ void main() async {
   await Hive.initFlutter();
   await Hive.openBox('userName');
   Hive.registerAdapter(SavedDateRangeAdapter());
+  Hive.registerAdapter(PeriodAlertAdapter());
   await Hive.openBox<SavedDateRange>('date_ranges');
+  await Hive.openBox<PeriodAlert>('periodAlerts');
   runApp(const MyApp());
 }
 
